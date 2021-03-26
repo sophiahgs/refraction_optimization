@@ -109,11 +109,3 @@ def get_refraction_parameters(exams, refraction_id_with_nan, list_test_id):
         list_of_comp_exam,
         list_of_lm_exam,
     )
-
-
-def multivariate_model(DataForModeling, ToFit):
-    scale = StandardScaler()
-    X_scaled = scale.fit_transform(DataForModeling.as_matrix())
-    estimate = sm.OLS(ToFit, X_scaled).fit()
-
-    print(estimate.estimate())

@@ -4,6 +4,7 @@ from dr_rules import apply_sph_rules
 from dr_rules import apply_cyl_rules
 from dr_rules import apply_axis_rules
 from dr_rules import apply_all_rules
+from dr_rules import multivariate_model
 from analyse_data import *
 import numpy as np
 import pandas as pd
@@ -36,6 +37,10 @@ compvision = convert_table_in_list(
     get_table(connect, "complementaryvision"),
     get_table_column_names(connect, "complementaryvision"),
 )
+intake = convert_table_in_list(
+    get_table(connect, "patientintakes"),
+    get_table_column_names(connect, "patientintakes"),
+)
 refraction_id_with_nan = get_list_of_nan_refraction(refraction, "l_sph")
 print(
     ".... {} rows of refraction or approx {} exams  was removed because of NaN value on l_sph".format(
@@ -55,9 +60,10 @@ exams = convert_table_in_list(
     list_of_subj_exam,
     list_of_obj_exam,
     list_of_comp_exam,
+    list_of_intake_exam,
     list_of_lm_exam,
     number_of_removed_exam,
-) = ([], [], [], [], [], 0)
+) = ([], [], [], [], [], [], 0)
 for some_id, exam in exams.iterrows():
     if exam["patient_uid"] not in list_test_id:
         if (
@@ -73,6 +79,7 @@ for some_id, exam in exams.iterrows():
             list_of_obj_exam.append(exam["obj_id"])
             list_of_lm_exam.append(exam["obj_id"])
             list_of_comp_exam.append(exam["compvision_id"])
+            list_of_intake_exam.append(exam["intake_id"])
         else:
             number_of_removed_exam += 1
             print(
@@ -104,17 +111,40 @@ final = refraction[refraction["id"].isin(list_of_final_exam)]
 objectif = refraction[refraction["id"].isin(list_of_obj_exam)]
 lm = refraction[refraction["id"].isin(list_of_lm_exam)]
 compvision = compvision[compvision["id"].isin(list_of_comp_exam)]
+intake = intake[intake["id"].isin(list_of_intake_exam)]
 
 
 ### Plot
 print("Let's plot data")
-comp_rx_generate_figure(subjective, "subjective", final, "final")
-comp_rx_generate_figure(objectif, "objective", final, "final")
-comp_rx_generate_figure(lm, "lensometer", final, "final")
-comp_rx_generate_figure(objectif, "objective", subjective, "subjective")
+# comp_rx_generate_figure(subjective, "subjective", final, "final")
+# comp_rx_generate_figure(objectif, "objective", final, "final")
+# comp_rx_generate_figure(lm, "lensometer", final, "final")
+# comp_rx_generate_figure(objectif, "objective", subjective, "subjective")
+# comp_rx_generate_figure(dr_rules_final, "dr_rules_final", final, "final")
 
 close_connexion(connect)
 dr_rules_final = apply_all_rules(lm, subjective, final, compvision)
-print(dr_rules_final)
-comp_rx_generate_figure(dr_rules_final, "dr_rules_final", final, "final")
+refraction_parameter = [
+    "l_sph",
+    "l_cyl",
+    "l_axis",
+    "r_sph",
+    "r_cyl",
+    "r_axis",
+]
+Model = pd.DataFrame()
+subjective = subjective.reset_index(drop=True)
+intake = intake.reset_index(drop=True)
+intake["has_glasses"] = intake["has_glasses"].replace(True, 0.5)
+intake["has_glasses"] = intake["has_glasses"].replace(False, -0.5)
+Model["subj_r_sph"] = subjective["r_sph"]
+Model["subj_l_sph"] = subjective["l_sph"]
+Model["has_glasses"] = intake["has_glasses"]
+Model["va"] = compvision["both_dva_out"]
+multivariate_model(
+    final["r_sph"].reset_index(drop=True),
+    Model.reset_index(drop=True),
+    "r_sph",
+)
+
 # stat = pd.DataFrame()

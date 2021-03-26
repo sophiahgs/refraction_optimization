@@ -1,4 +1,8 @@
 import pandas as pd
+import statsmodels.api as sm
+import matplotlib.pyplot as plt
+import numpy as np
+import os
 
 
 def normal_round(n: float):
@@ -19,7 +23,6 @@ def apply_sph_rules(lm_sph: float, sub_sph: float, va: int):
         return sub_sph
     delta_va = va - 20
     if delta_va != 0:
-        print("delta_va != 0:")
         n = delta_va / 5 + 1
         return normal_round((1 / n) * lm_sph + (1 - (1 / n)) * sub_sph)
     return sub_sph
@@ -126,3 +129,35 @@ def apply_all_rules(lm, subjective, final, compvision):
     dr_rules_final["r_axis"] = dr_rules_final_r_axis
 
     return dr_rules_final
+
+
+def multivariate_model(to_predict, model, varname):
+    os.makedirs("multivariatemodel", exist_ok=True)
+    X2 = sm.add_constant(model)
+    est = sm.OLS(to_predict.astype(float), X2.astype(float), missing="drop")
+    est2 = est.fit()
+    # X = sm.add_constant(X2.astype(float))
+    print(est2.summary())
+    X2.dropna()
+    ypred = est2.predict(X2.astype(float))
+    fig, ax1 = plt.subplots()
+    ax1.scatter(to_predict, ypred)
+    lims = [
+        np.min([ax1.get_xlim(), ax1.get_ylim()]),  # min of both axes
+        np.max([ax1.get_xlim(), ax1.get_ylim()]),  # max of both axes
+    ]
+
+    # now plot both limits against eachother
+    ax1.plot(lims, lims, "k-", alpha=0.75, zorder=0)
+    ax1.set_aspect("equal")
+    ax1.set_ylabel("true data")
+    ax1.set_xlabel("prediction")
+    ax1.title.set_text("{}".format(list(model.columns)))
+    fig.savefig(
+        "multivariatemodel"
+        + "/{}_with_{}".format(
+            varname,
+            list(model.columns),
+        )
+    )
+    return est2
